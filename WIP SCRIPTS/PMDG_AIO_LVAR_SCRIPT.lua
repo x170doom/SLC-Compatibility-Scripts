@@ -1,6 +1,13 @@
 -- file by x170doom
 -- lvar to avar script for pmdg NGXu, redirects doors, seatbelts
-
+--dev version for integration with pmdg 777,747,DC-8
+--todo:
+--remake aircraftcheck to support multiple aircraft types
+--build event library calls into individual functions for each aircraft type
+--rewrite/new functions for other aircraft types (find best method with least overhead)
+--maybe some additional feedback in debugmode
+--fallbacks in situations where sim is unsure
+--fix for issue #6
 debugmode = false
 aircrafttype = ipc.readSTR("3D00", 8)
 seatbeltstate = "not yet set"
