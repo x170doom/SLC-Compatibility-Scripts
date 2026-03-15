@@ -7,13 +7,29 @@
 --rewrite/new functions for other aircraft types (find best method with least overhead)
 --maybe some additional feedback in debugmode
 --fallbacks in situations where sim is unsure
---fix for issue #6
-debugmode = false
-aircrafttype = ipc.readSTR("3D00", 8)
-seatbeltstate = "not yet set"
-aircraftonground = true
+--fix for issue #6 [no longer required. issue resolved by slc 1.6.6.9]
+
+function initmain()
+ local debugmode = false
+ local seatbeltstate = "not yet set"
+ local aircraftonground = true
+ initarrays()
+ aircraftcheck()
+ initvar()
+end
+
+function initarrays()--todo: everything
+ a = {}
+ b = {}
+ c = {}
+end
+
+function initvar()
+--do stuff and things
+end
 
 function aircraftcheck()
+ aircrafttype = ipc.readSTR("3D00", 8)
 	if aircrafttype =="PMDG 737" and not checkran then
 		local checkran = true
 		return
