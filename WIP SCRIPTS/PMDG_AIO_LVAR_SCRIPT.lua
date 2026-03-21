@@ -10,34 +10,45 @@
 --fix for issue #6 [no longer required. issue resolved by slc 1.6.6.9]
 
 function initmain()
- local debugmode = false
+ local debugmode = true
  local seatbeltstate = "not yet set"
  local aircraftonground = true
  initarrays()
  aircraftcheck()
- initvar()
+ --initvar()
 end
 
 function initarrays()--todo: everything
  a = {}
- b = {}
- c = {}
+ a["737"] = {}
+ a["747"] = {}
+ a["777"] = {}
+ a["dc-8"] = {}
+ a["737"]["sboffset"] = 0x649F
+ a["737"]["sboffset_type"] = "UB"
+ a["747"]["sboffset"] = 0x6C2B
+ a["747"]["sboffset_type"] = "UB"
 end
 
-function initvar()
---do stuff and things
-end
+-- function initvar()
+	-- do stuff and things
+-- end
 
 function aircraftcheck()
  aircrafttype = ipc.readSTR("3D00", 8)
-	if aircrafttype =="PMDG 737" and not checkran then
-		local checkran = true
+	if aircrafttype == "PMDG 737" then
+		aircraft_type = "737"
 		return
-	elseif checkran then
+	elseif aircrafttype == "PMDG 747" then
+		aircraft_type = "747"
 		return
+	-- elseif aircrafttype == "PMDG 777" then
+		-- boilerplate
+	-- elseif aircrafttype == "dc8 name goes here" then
+		-- boilerplate
 	else
-		debugfunction("PMDG 737 not detected... exiting")
-		ipc.exit()
+		debugfunction("PMDG aircraft not detected... exiting")
+		exitfunction()
 	end
 end
 function autoseatbeltmaintain ()
@@ -54,8 +65,8 @@ function autoseatbeltmaintain ()
 	end
 end
 
-function seatbeltcheck (offset, value)
-	if offset == 0x649F then
+function seatbeltcheck (offset, value)--initial implementation of array based offset logic, needs investigating if auto mode logic works with other types than 737
+	if offset == a[aircraft_type]["sboffset"] then
 		if value == 0 then
 			local seatbeltstate = "off"
 			event.cancel(seatbeltcheck)
@@ -139,8 +150,14 @@ function debugfunction (errtext)
 		return
 	end
 end
-aircraftcheck()
-event.offset(0x649F, "UB", "seatbeltcheck")--seatbelt light
+
+function exitfunction()
+	a = nil
+	ipc.exit()
+end
+
+initmain()
+event.offset(a[aircraft_type]["sboffset"], a[aircraft_type]["sboffset_type"], "seatbeltcheck")--seatbelt light
 event.offset(0x0366, "UB", "seatbeltcheck")--aircraftonground
 event.offset(0x6C15, "UB", "doorcheck")--doors
 event.offset(0x6C1E, "UB", "doorcheck")--doors
