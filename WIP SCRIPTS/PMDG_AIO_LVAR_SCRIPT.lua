@@ -19,7 +19,7 @@ function initmain()
 end
 
 function initarrays()--todo: everything
- a = {}
+ local a = {}
  a["737"] = {}
  a["747"] = {}
  a["777"] = {}
