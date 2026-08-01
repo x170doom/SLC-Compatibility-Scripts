@@ -2,7 +2,7 @@
 -- lvar to avar script for pmdg NGXu, redirects doors, seatbelts
 --dev version for integration with pmdg 777,747,DC-8
 --todo:
---remake aircraftcheck to support multiple aircraft types
+--remake aircraftcheck to support multiple aircraft types -done
 --build event library calls into individual functions for each aircraft type
 --rewrite/new functions for other aircraft types (find best method with least overhead)
 --maybe some additional feedback in debugmode
@@ -15,38 +15,137 @@ function initmain()
  local aircraftonground = true
  initarrays()
  aircraftcheck()
- --initvar()
+ initvar()
 end
 
-function initarrays()--todo: everything
+
+function initarrays()--todo: 747 stuff
  local a = {}
  a["737"] = {}
- a["747"] = {}
+ --a["747"] = {}
  a["777"] = {}
  a["dc-8"] = {}
  a["737"]["sboffset"] = 0x649F
- a["737"]["sboffset_type"] = "UB"
- a["747"]["sboffset"] = 0x6C2B
- a["747"]["sboffset_type"] = "UB"
+ a["737"]["door2"] = 0x6C15
+ a["737"]["door3"] = 0x6C1E
+ a["737"]["door4"] = 0x6C1F
+ --a["747"]["sboffset"] = 0x6C2B
+ a["777"]["sboffset"] = 0x647B
+ a["777"]["door2"] = 0x65DD
+ a["777"]["door3"] = 0x65DE
+ a["777"]["door4"] = 0x65DF
+ a["777"]["door5"] = 0x65E0
+ a["777"]["door6"] = 0x65E1
+ a["777"]["door7"] = 0x65E2
+ a["777"]["door8"] = 0x65E3
+ a["777"]["door9"] = 0x65E4
+ a["777"]["door10"] = 0x65E5
 end
 
--- function initvar()
-	-- do stuff and things
--- end
+function initvar()
+	aircraft_typelist = {
+		["PMDG 737"] = "737",
+		--["PMDG 747"] = "747",
+		["PMDG 777"] = "777",
+		--["PMDG DC-8"] = "DC-8"
+	}
+	doorlayout = {
+		"737" = function(offset,value)
+			if offset == 0x6C15 then
+				if value == 1 then
+					ipc.setbitsUW("3367", 2)
+				else
+					ipc.clearbitsUW("3367", 2)
+				end
+			elseif offset == 0x6C1E then
+				if value == 1 then
+					ipc.setbitsUW("3367", 4)
+				else
+					ipc.clearbitsUW("3367", 4)
+				end
+			elseif offset == 0x6C1F then
+				if value == 1 then
+					ipc.setbitsUW("3367", 8)
+				else
+					ipc.clearbitsUW("3367", 8)
+				end
+			else
+				debugfunction("doorcheck called without valid offset")
+			end
+		end,
+		--"747" = function(offset,value)
+		--end
+		"777" = function(offset,value)
+			if offset == 0x65DD then
+				if value == 0 then
+					ipc.setbitsUW("3367", 2)
+				else
+					ipc.clearbitsUW("3367", 2)
+				end
+			elseif offset == 0x65DE then
+				if value == 0 then
+					ipc.setbitsUW("3367", 4)
+				else
+					ipc.clearbitsUW("3367", 4)
+				end
+			elseif offset == 0x65DF then
+				if value == 0 then
+					ipc.setbitsUW("3367", 8)
+				else
+					ipc.clearbitsUW("3367", 8)
+				end
+			elseif offset == 0x65E4 then
+				local fivedoor = true
+				if value == 0 then
+					ipc.setbitsUW("3367", 64)
+				else
+					ipc.clearbitsUW("3367",64)
+				end
+			elseif offset == 0x65E5 then
+				local fivedoor = true
+				if value == 0 then
+					ipc.setbitsUW("3367", 128)
+				else
+					ipc.clearbitsUW("3367",128)
+				end
+			elseif offset == 0x65E0 then
+				if value == 0 then
+					ipc.setbitsUW("3367", 16)
+				else
+					ipc.clearbitsUW("3367",16)
+				end
+			elseif offset == 0x65E1 then
+				if value == 0 then
+					ipc.setbitsUW("3367", 32)
+				else
+					ipc.clearbitsUW("3367",32)
+				end
+			elseif offset == 0x65E2 and not fivedoor then
+				if value == 0 then
+					ipc.setbitsUW("3367", 64)
+				else
+					ipc.clearbitsUW("3367",64)
+				end
+			elseif offset == 0x65E3 and not fivedoor then
+				if value == 0 then
+					ipc.setbitsUW("3367", 128)
+				else
+					ipc.clearbitsUW("3367",128)
+				end
+			else
+				debugfunction("doorcheck called without valid offset")
+			end
+		end
+	}
+end
 
 function aircraftcheck()
  aircrafttype = ipc.readSTR("3D00", 8)
-	if aircrafttype == "PMDG 737" then
-		aircraft_type = "737"
-		return
-	elseif aircrafttype == "PMDG 747" then
-		aircraft_type = "747"
-		return
-	-- elseif aircrafttype == "PMDG 777" then
-		-- boilerplate
-	-- elseif aircrafttype == "dc8 name goes here" then
-		-- boilerplate
-	else
+	local ac_type = ipc.readSTR("3D00",8)
+	aircraft_type = aircraft_typelist[ac_type]
+	if aircraft_type == "747" or aircraft_type == "777" then
+		largedoorcount = true
+	elseif not aircraft_type then
 		debugfunction("PMDG aircraft not detected... exiting")
 		exitfunction()
 	end
@@ -68,11 +167,11 @@ end
 function seatbeltcheck (offset, value)--initial implementation of array based offset logic, needs investigating if auto mode logic works with other types than 737
 	if offset == a[aircraft_type]["sboffset"] then
 		if value == 0 then
-			local seatbeltstate = "off"
+			seatbeltstate = "off"
 			event.cancel(seatbeltcheck)
 			seatbeltsetstate(false)
 		elseif value == 1 then
-			local seatbeltstate = "Auto"
+			seatbeltstate = "Auto"
 			if isaircraftonground == false then
 				if ipc.readSD(0x3324) < 10000 then
 					seatbeltsetstate(true)
@@ -86,7 +185,7 @@ function seatbeltcheck (offset, value)--initial implementation of array based of
 				seatbeltsetstate(true)
 			end
 		elseif value == 2 then
-			local seatbeltstate = "on" 
+			seatbeltstate = "on" 
 			event.cancel(seatbeltcheck)
 			seatbeltsetstate(true)
 		else
@@ -114,33 +213,40 @@ function seatbeltsetstate (changeto)
 		debugfunction("state change called to same state")
 	end
 end
-function doorcheck (offset,value)
-	if ipc.readUB(0x655C) > 0 then
-		if offset == 0x6C15 then
-			if value == 1 then
-				ipc.setbitsUW("3367", 2)
-			else
-				ipc.clearbitsUW("3367", 2)
-			end
-		elseif offset == 0x6C1E then
-			if value == 1 then
-				ipc.setbitsUW("3367", 4)
-			else
-				ipc.clearbitsUW("3367", 4)
-			end
-		elseif offset == 0x6C1F then
-			if value == 1 then
-				ipc.setbitsUW("3367", 8)
-			else
-				ipc.clearbitsUW("3367", 8)
-			end
-		else
-			debugfunction("doorcheck called without valid offset")
-		end
+-- function doorcheck (offset,value)
+	-- if ipc.readUB(0x655C) > 0 then
+		-- if offset == 0x6C15 then
+			-- if value == 1 then
+				-- ipc.setbitsUW("3367", 2)
+			-- else
+				-- ipc.clearbitsUW("3367", 2)
+			-- end
+		-- elseif offset == 0x6C1E then
+			-- if value == 1 then
+				-- ipc.setbitsUW("3367", 4)
+			-- else
+				-- ipc.clearbitsUW("3367", 4)
+			-- end
+		-- elseif offset == 0x6C1F then
+			-- if value == 1 then
+				-- ipc.setbitsUW("3367", 8)
+			-- else
+				-- ipc.clearbitsUW("3367", 8)
+			-- end
+		-- else
+			-- debugfunction("doorcheck called without valid offset")
+		-- end
+	-- else
+		-- return
+	-- end
+-- end
+--old doorcheck method for the 737 only, no longer used but preserved for refference
+function doorcheck (offset,value)--much cleaner
+	if aircraft_type == "737" and ipc.readUB(0x655C) > 0 or aircraft_type ~= "737" then
+		doorlayout [aircrafttype] (offset,value)
 	else
-		return
+		debugfunction("door state cannot be determined due to invalid lights test switch position, offset ignored for now")
 	end
-end
 
 function debugfunction (errtext)
 	if debugmode then
@@ -150,17 +256,35 @@ function debugfunction (errtext)
 		return
 	end
 end
-
+--new debug mode goes here
+--function debugfunction (errtext,ecode)
+--	if debugmode then
+--		debugmenu
+--stuff
 function exitfunction()
 	a = nil
 	ipc.exit()
-end
+end--dont know if this is needed. but here anyway just in case
 
 initmain()
-event.offset(a[aircraft_type]["sboffset"], a[aircraft_type]["sboffset_type"], "seatbeltcheck")--seatbelt light
-event.offset(0x0366, "UB", "seatbeltcheck")--aircraftonground
-event.offset(0x6C15, "UB", "doorcheck")--doors
-event.offset(0x6C1E, "UB", "doorcheck")--doors
-event.offset(0x6C1F, "UB", "doorcheck")--doors
+initevents()
 
+function initevents
+	event.offset(a[aircraft_type]["sboffset"], "UB", "seatbeltcheck")--seatbelt light
+	event.offset(0x0366, "UB", "seatbeltcheck")--aircraftonground
+	event.offset(a[aircraft_type]["door2"], "UB", "doorcheck")--door2	
+	event.offset(a[aircraft_type]["door3"], "UB", "doorcheck")--door3
+	event.offset(a[aircraft_type]["door4"], "UB", "doorcheck")--door4
+	--these should run regardless of aircraft
+	if largedoorcount then
+		event.offset(a[aircraft_type]["door5"], "UB", "doorcheck")--door5
+		event.offset(a[aircraft_type]["door6"], "UB", "doorcheck")--door6
+		event.offset(a[aircraft_type]["door7"], "UB", "doorcheck")--door7
+		event.offset(a[aircraft_type]["door8"], "UB", "doorcheck")--door8
+		event.offset(a[aircraft_type]["door9"], "UB", "doorcheck")--door9
+		event.offset(a[aircraft_type]["door10"], "UB", "doorcheck")--door10
+	end
+end
+--only run on aircraft with 5+ doors
+-- these need adding to specialised function, first 3 should allways start and use the array for variables. the rest should only be called if enough doors are present
 

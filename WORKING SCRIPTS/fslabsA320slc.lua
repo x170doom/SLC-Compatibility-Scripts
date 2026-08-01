@@ -38,7 +38,7 @@ function LLcheck (varname, value)
 		if value == 20 then
 			LeftLL = true
 			debugingmode("left landing light switch on")
-		elseif value < 11 then
+		elseif value < 9 then
 			LeftLL = false
 			debugingmode("left landing light switch off")
 		else
@@ -48,7 +48,7 @@ function LLcheck (varname, value)
 		if value == 20 then
 			RightLL = true
 			debugingmode("Rightlanding light switch on")
-		elseif value < 11 then
+		elseif value < 9 then
 			RightLL = false
 			debugingmode("Right landing light switch off")
 		else
